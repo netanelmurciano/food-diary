@@ -690,3 +690,86 @@ th {
   color: #334155;
   cursor: pointer;
 }
+
+/* ==========================================================================
+   MOBILE RESPONSIVENESS & PREMIUM VISUAL FIXES
+   ========================================================================== */
+@media (max-width: 640px) {
+  .app {
+    padding: 12px 10px;
+  }
+
+  h1 {
+    font-size: 1.6rem;
+    margin-bottom: 12px;
+  }
+
+  .top-dashboard {
+    grid-template-columns: 1fr;
+    gap: 12px;
+    margin-bottom: 16px;
+  }
+
+  .goals-inputs {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 8px;
+  }
+
+  .mode-tabs {
+    flex-wrap: wrap;
+    gap: 6px;
+  }
+
+  .mode-tabs button {
+    font-size: 0.85rem;
+    padding: 10px 6px;
+    flex-basis: 45%;
+  }
+
+  .manual-fields {
+    grid-template-columns: 1fr;
+    gap: 12px;
+  }
+
+  .search-row {
+    flex-direction: column;
+    gap: 8px;
+  }
+
+  .search-row button {
+    width: 100%;
+    padding: 12px;
+  }
+
+  /* Scrollable container for tables to prevent overflow */
+  .meal-bucket {
+    overflow-x: auto;
+    padding: 10px;
+  }
+
+  table {
+    min-width: 450px;
+  }
+
+  .totals {
+    gap: 12px;
+    font-size: 0.85rem;
+    padding: 10px 8px;
+  }
+
+  .fav-item {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 12px;
+  }
+
+  .fav-actions {
+    justify-content: space-between;
+    width: 100%;
+  }
+
+  .fav-meal-select {
+    flex: 1;
+  }
+}
+
