@@ -383,8 +383,13 @@ function App() {
 
         {mode === 'favorites' && (
           <div className="favorites-form">
+            <h3 className="favorites-header">⭐ המאכלים המועדפים שלי</h3>
             {favorites.length === 0 ? (
-              <p className="empty">אין לך עדיין מאכלים מועדפים</p>
+              <div className="favorites-empty-card">
+                <span className="empty-icon">🌟</span>
+                <h4>אין לך עדיין מאכלים מועדפים</h4>
+                <p>לחץ על סמל הכוכב (⭐) ליד המאכלים שאתה אוכל לעיתים קרובות כדי להוסיף אותם לכאן ולחסוך זמן!</p>
+              </div>
             ) : (
               <ul className="favorites-list">
                 {favorites.map(fav => (
