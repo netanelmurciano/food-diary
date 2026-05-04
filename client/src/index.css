@@ -773,3 +773,90 @@ th {
   }
 }
 
+/* ==========================================================================
+   PREMIUM PIN PROTECTION SCREEN STYLING
+   ========================================================================== */
+.pin-container {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 100vh;
+  background: linear-gradient(135deg, #f8fafc 0%, #e2e8f0 100%);
+  padding: 24px;
+  direction: rtl;
+}
+
+.pin-card {
+  background: #ffffff;
+  padding: 32px 28px;
+  border-radius: 16px;
+  box-shadow: 0 10px 25px rgba(0, 0, 0, 0.05), 0 2px 5px rgba(0, 0, 0, 0.02);
+  max-width: 380px;
+  width: 100%;
+  text-align: center;
+  border: 1px solid rgba(226, 232, 240, 0.8);
+}
+
+.pin-card h2 {
+  font-size: 1.5rem;
+  color: #1e293b;
+  margin-bottom: 8px;
+}
+
+.pin-card p {
+  font-size: 0.95rem;
+  color: #64748b;
+  margin-bottom: 24px;
+}
+
+.pin-card form {
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+.pin-card input {
+  padding: 12px 16px;
+  border-radius: 12px;
+  border: 1px solid #cbd5e1;
+  font-size: 1.15rem;
+  text-align: center;
+  letter-spacing: 4px;
+  outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  background-color: #f8fafc;
+}
+
+.pin-card input:focus {
+  border-color: #3b82f6;
+  box-shadow: 0 0 0 4px rgba(59, 130, 246, 0.1);
+  background-color: #fff;
+}
+
+.pin-card button {
+  padding: 12px 20px;
+  background: #2563eb;
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-size: 1rem;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s, transform 0.1s;
+}
+
+.pin-card button:hover {
+  background: #1d4ed8;
+}
+
+.pin-card button:active {
+  transform: scale(0.98);
+}
+
+.pin-error {
+  color: #ef4444;
+  font-size: 0.85rem;
+  font-weight: 500;
+  text-align: right;
+  padding-right: 4px;
+}

@@ -31,6 +31,12 @@ function App() {
     return saved ? JSON.parse(saved) : initialTargets;
   });
 
+  const [isAuthorized, setIsAuthorized] = useState(() => {
+    return localStorage.getItem('auth_pin') === '7327043';
+  });
+  const [pinInput, setPinInput] = useState('');
+  const [pinError, setPinError] = useState('');
+
   useEffect(() => {
     fetchEntries();
     fetchFavorites();
@@ -183,6 +189,41 @@ function App() {
   }
 
   const isFavorite = (foodName) => favorites.some(fav => fav.food_name === foodName);
+
+  if (!isAuthorized) {
+    return (
+      <div className="pin-container">
+        <div className="pin-card">
+          <h2>🔒 כניסה מוגנת</h2>
+          <p>הזן קוד PIN כדי להמשיך</p>
+          <form onSubmit={(e) => {
+            e.preventDefault();
+            if (pinInput === '7327043') {
+              localStorage.setItem('auth_pin', '7327043');
+              setIsAuthorized(true);
+            } else {
+              setPinError('קוד PIN שגוי. נסה שוב.');
+            }
+          }}>
+            <input
+              type="password"
+              inputMode="numeric"
+              pattern="[0-9]*"
+              value={pinInput}
+              onChange={(e) => {
+                setPinInput(e.target.value);
+                if (pinError) setPinError('');
+              }}
+              placeholder="קוד PIN"
+              autoFocus
+            />
+            {pinError && <div className="pin-error">{pinError}</div>}
+            <button type="submit">התחבר</button>
+          </form>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="app">
