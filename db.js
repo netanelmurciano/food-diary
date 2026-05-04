@@ -1,7 +1,13 @@
 const Database = require('better-sqlite3');
 const path = require('path');
 
-const db = new Database(path.join(__dirname, 'food-diary.db'));
+let dbPath = path.join(__dirname, 'food-diary.db');
+// If we're on the production server, store the DB one folder above the git repo so it doesn't get overwritten on redeploy
+if (process.env.NODE_ENV === 'production' || !__dirname.includes('Users')) {
+  dbPath = path.join(__dirname, '../food-diary.db');
+}
+
+const db = new Database(dbPath);
 
 db.exec(`
   CREATE TABLE IF NOT EXISTS diary_entries (
