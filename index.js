@@ -293,7 +293,7 @@ const path = require('path');
 const fs = require('fs');
 
 // Determine the correct client build directory path
-let distPath = path.join(__dirname, '../client/dist');
+let distPath = path.join(__dirname, 'client/dist');
 if (!fs.existsSync(distPath)) {
   distPath = path.join(__dirname, 'dist');
 }
