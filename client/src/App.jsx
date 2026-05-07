@@ -93,6 +93,9 @@ function App() {
       await axios.post(`${API}/ai/parse-text`, { date, text: aiText, meal_type: aiMealType });
       setAiText('');
       fetchEntries();
+    } catch (err) {
+      console.error(err);
+      alert('שגיאה בניתוח הטקסט: ' + (err.response?.data?.error || err.message));
     } finally {
       setParsing(false);
     }
@@ -115,6 +118,9 @@ function App() {
       await axios.post(`${API}/ai/parse-image`, { date, image: aiImage, meal_type: aiMealType });
       setAiImage(null);
       fetchEntries();
+    } catch (err) {
+      console.error(err);
+      alert('שגיאה בניתוח התמונה: ' + (err.response?.data?.error || err.message));
     } finally {
       setParsing(false);
     }

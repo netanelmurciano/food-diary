@@ -24,21 +24,38 @@ Assign the most appropriate meal type from: "בוקר", "ביניים", "צהר�
 Return ONLY a JSON array of objects with the exact keys: "food_name", "quantity_grams", "calories", "protein", "carbs", "fat", "meal_type".
 All fields must be numbers except food_name and meal_type which are strings.
 Name the foods in Hebrew.
+Do not include any explanation or markdown formatting like \`\`\`json. Just the raw JSON array.
 `;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         contents: [{ parts: [{ text: prompt }] }],
-        generationConfig: { responseMimeType: 'application/json' }
+        generationConfig: { 
+          responseMimeType: 'application/json',
+          temperature: 0.1
+        }
       },
-      { timeout: 15000 }
+      { timeout: 30000 } // Increased timeout to 30s
     );
 
-    const aiResponse = response.data.candidates[0].content.parts[0].text;
-    const items = JSON.parse(aiResponse);
+    let aiResponse = response.data.candidates[0].content.parts[0].text;
+    
+    // Safety check: remove markdown code blocks if the AI included them anyway
+    if (aiResponse.includes('```')) {
+      aiResponse = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+    }
+
+    let items;
+    try {
+      items = JSON.parse(aiResponse);
+    } catch (parseErr) {
+      console.error('Failed to parse AI JSON response:', aiResponse);
+      throw new Error('Invalid JSON format from AI');
+    }
 
     if (!Array.isArray(items)) {
+      console.error('AI response is not an array:', items);
       return res.status(500).json({ error: 'AI returned invalid format' });
     }
 
@@ -64,8 +81,9 @@ Name the foods in Hebrew.
 
     res.json({ success: true, entries: insertedEntries });
   } catch (err) {
-    console.error('Error in parse-text:', err);
-    res.status(500).json({ error: 'Failed to parse text via AI' });
+    console.error('Error in parse-text:', err.response?.data || err.message);
+    const errorMessage = err.response?.data?.error?.message || err.message || 'Failed to parse text via AI';
+    res.status(500).json({ error: errorMessage });
   }
 });
 
@@ -94,10 +112,11 @@ Assign the most appropriate meal type from: "בוקר", "ביניים", "צהר�
 Return ONLY a JSON array of objects with the exact keys: "food_name", "quantity_grams", "calories", "protein", "carbs", "fat", "meal_type".
 All fields must be numbers except food_name and meal_type which are strings.
 Name the foods in Hebrew.
+Do not include any explanation or markdown formatting like \`\`\`json. Just the raw JSON array.
 `;
 
     const response = await axios.post(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.5-flash:generateContent?key=${apiKey}`,
+      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
       {
         contents: [
           {
@@ -112,15 +131,31 @@ Name the foods in Hebrew.
             ]
           }
         ],
-        generationConfig: { responseMimeType: 'application/json' }
+        generationConfig: { 
+          responseMimeType: 'application/json',
+          temperature: 0.1
+        }
       },
-      { timeout: 20000 }
+      { timeout: 45000 } // Increased timeout for images to 45s
     );
 
-    const aiResponse = response.data.candidates[0].content.parts[0].text;
-    const items = JSON.parse(aiResponse);
+    let aiResponse = response.data.candidates[0].content.parts[0].text;
+    
+    // Safety check: remove markdown code blocks if the AI included them anyway
+    if (aiResponse.includes('```')) {
+      aiResponse = aiResponse.replace(/```json/g, '').replace(/```/g, '').trim();
+    }
+
+    let items;
+    try {
+      items = JSON.parse(aiResponse);
+    } catch (parseErr) {
+      console.error('Failed to parse AI JSON response (image):', aiResponse);
+      throw new Error('Invalid JSON format from AI');
+    }
 
     if (!Array.isArray(items)) {
+      console.error('AI response (image) is not an array:', items);
       return res.status(500).json({ error: 'AI returned invalid format' });
     }
 
@@ -146,8 +181,9 @@ Name the foods in Hebrew.
 
     res.json({ success: true, entries: insertedEntries });
   } catch (err) {
-    console.error('Error in parse-image:', err);
-    res.status(500).json({ error: 'Failed to parse image via AI' });
+    console.error('Error in parse-image:', err.response?.data || err.message);
+    const errorMessage = err.response?.data?.error?.message || err.message || 'Failed to parse image via AI';
+    res.status(500).json({ error: errorMessage });
   }
 });
 
