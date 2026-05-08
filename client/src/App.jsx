@@ -548,11 +548,12 @@ function App() {
                   <div className="analysis-box bmi-box">
                     <h4>BMI נוכחי</h4>
                     {(() => {
-                      const currentW = weightLogs[0].weight_kg;
-                      const h = userSettings.height_cm;
+                      const currentW = +weightLogs[0].weight_kg;
+                      const h = +userSettings.height_cm;
                       if (!h) return <p>הזן גובה לחישוב BMI</p>;
                       const bmiVal = (currentW / Math.pow(h / 100, 2)).toFixed(1);
                       let cat = { label: 'תקין', color: '#2ecc71' };
+                      if (isNaN(bmiVal)) return <p>נתונים לא תקינים</p>;
                       if (bmiVal < 18.5) cat = { label: 'תת משקל', color: '#3498db' };
                       else if (bmiVal >= 25 && bmiVal < 30) cat = { label: 'עודף משקל', color: '#f1c40f' };
                       else if (bmiVal >= 30) cat = { label: 'השמנה', color: '#e74c3c' };
@@ -571,9 +572,9 @@ function App() {
                     {(() => {
                       const start = +userSettings.starting_weight_kg;
                       const target = +userSettings.target_weight_kg;
-                      const current = weightLogs[0].weight_kg;
+                      const current = +weightLogs[0].weight_kg;
                       
-                      if (!start || !target) return <p>הזן משקל התחלתי ויעד</p>;
+                      if (!start || !target || !current) return <p>הזן משקל התחלתי ויעד</p>;
                       
                       const totalToLose = start - target;
                       const lostSoFar = start - current;
