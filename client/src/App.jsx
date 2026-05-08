@@ -527,7 +527,14 @@ function App() {
 
               <div className="weight-card entry-card">
                 <h3>📉 הזן משקל חדש</h3>
-                <p className="date-display">עבור תאריך: {date}</p>
+                <div className="weight-date-picker">
+                  <label>תאריך:</label>
+                  <input 
+                    type="date" 
+                    value={date} 
+                    onChange={e => setDate(e.target.value)} 
+                  />
+                </div>
                 <div className="weight-input-row">
                   <input 
                     type="number" 

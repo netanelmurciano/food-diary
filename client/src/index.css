@@ -953,6 +953,22 @@ th {
   margin-top: 4px;
 }
 
+.weight-date-picker {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 8px;
+  font-size: 0.9rem;
+  color: #475569;
+}
+
+.weight-date-picker input {
+  padding: 6px 10px;
+  border: 1px solid #cbd5e1;
+  border-radius: 6px;
+  font-size: 0.9rem;
+}
+
 .analysis-grid {
   display: grid;
   grid-template-columns: 1fr 1fr;
