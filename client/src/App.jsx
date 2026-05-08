@@ -1,5 +1,8 @@
 import { useState, useEffect } from 'react';
 import axios from 'axios';
+import { 
+  LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, ReferenceLine
+} from 'recharts';
 import './index.css';
 
 const API = window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1' 
@@ -31,6 +34,10 @@ function App() {
     return saved ? JSON.parse(saved) : initialTargets;
   });
 
+  const [weightLogs, setWeightLogs] = useState([]);
+  const [userSettings, setUserSettings] = useState({ height_cm: '', target_weight_kg: '', starting_weight_kg: '' });
+  const [weightInput, setWeightInput] = useState('');
+
   const [isAuthorized, setIsAuthorized] = useState(() => {
     return localStorage.getItem('auth_pin') === '7327043';
   });
@@ -41,6 +48,8 @@ function App() {
     fetchEntries();
     fetchFavorites();
     fetchWater();
+    fetchWeightLogs();
+    fetchUserSettings();
     if (mode === 'stats') {
       fetchStats();
     }
@@ -68,6 +77,32 @@ function App() {
   async function fetchStats() {
     const { data } = await axios.get(`${API}/stats/weekly`);
     setStats(data);
+  }
+
+  async function fetchWeightLogs() {
+    const { data } = await axios.get(`${API}/weight`);
+    setWeightLogs(data);
+  }
+
+  async function fetchUserSettings() {
+    const { data } = await axios.get(`${API}/settings`);
+    setUserSettings({
+      height_cm: data.height_cm || '',
+      target_weight_kg: data.target_weight_kg || '',
+      starting_weight_kg: data.starting_weight_kg || ''
+    });
+  }
+
+  async function saveWeight() {
+    if (!weightInput) return;
+    await axios.post(`${API}/weight`, { date, weight_kg: +weightInput });
+    setWeightInput('');
+    fetchWeightLogs();
+  }
+
+  async function saveSettings() {
+    await axios.post(`${API}/settings`, userSettings);
+    alert('ההגדרות נשמרו בהצלחה');
   }
 
   async function addManualEntry() {
@@ -285,6 +320,7 @@ function App() {
           <button className={mode === 'image-ai' ? 'active' : ''} onClick={() => setMode('image-ai')}>ניתוח תמונה AI</button>
           <button className={mode === 'favorites' ? 'active' : ''} onClick={() => setMode('favorites')}>⭐ מועדפים</button>
           <button className={mode === 'stats' ? 'active' : ''} onClick={() => setMode('stats')}>📊 סטטיסטיקה</button>
+          <button className={mode === 'weight' ? 'active' : ''} onClick={() => setMode('weight')}>⚖️ משקל</button>
         </div>
 
         {mode === 'manual' && (
@@ -450,6 +486,143 @@ function App() {
                     </div>
                   </div>
                 ))}
+              </div>
+            )}
+          </div>
+        )}
+
+        {mode === 'weight' && (
+          <div className="weight-form">
+            <div className="weight-grid">
+              <div className="weight-card settings-card">
+                <h3>⚙️ הגדרות גוף ויעד</h3>
+                <div className="settings-inputs">
+                  <label>
+                    גובה (ס״מ):
+                    <input 
+                      type="number" 
+                      value={userSettings.height_cm} 
+                      onChange={e => setUserSettings(s => ({ ...s, height_cm: e.target.value }))} 
+                    />
+                  </label>
+                  <label>
+                    משקל התחלתי (ק״ג):
+                    <input 
+                      type="number" 
+                      value={userSettings.starting_weight_kg} 
+                      onChange={e => setUserSettings(s => ({ ...s, starting_weight_kg: e.target.value }))} 
+                    />
+                  </label>
+                  <label>
+                    משקל יעד (ק״ג):
+                    <input 
+                      type="number" 
+                      value={userSettings.target_weight_kg} 
+                      onChange={e => setUserSettings(s => ({ ...s, target_weight_kg: e.target.value }))} 
+                    />
+                  </label>
+                </div>
+                <button className="save-settings-btn" onClick={saveSettings}>שמור הגדרות</button>
+              </div>
+
+              <div className="weight-card entry-card">
+                <h3>📉 הזן משקל חדש</h3>
+                <p className="date-display">עבור תאריך: {date}</p>
+                <div className="weight-input-row">
+                  <input 
+                    type="number" 
+                    step="0.1" 
+                    placeholder="70.5" 
+                    value={weightInput} 
+                    onChange={e => setWeightInput(e.target.value)} 
+                  />
+                  <span>ק״ג</span>
+                </div>
+                <button className="add-btn" onClick={saveWeight} disabled={!weightInput}>עדכן משקל</button>
+              </div>
+            </div>
+
+            {weightLogs.length > 0 && (
+              <div className="weight-analysis">
+                <div className="analysis-grid">
+                  <div className="analysis-box bmi-box">
+                    <h4>BMI נוכחי</h4>
+                    {(() => {
+                      const currentW = weightLogs[0].weight_kg;
+                      const h = userSettings.height_cm;
+                      if (!h) return <p>הזן גובה לחישוב BMI</p>;
+                      const bmiVal = (currentW / Math.pow(h / 100, 2)).toFixed(1);
+                      let cat = { label: 'תקין', color: '#2ecc71' };
+                      if (bmiVal < 18.5) cat = { label: 'תת משקל', color: '#3498db' };
+                      else if (bmiVal >= 25 && bmiVal < 30) cat = { label: 'עודף משקל', color: '#f1c40f' };
+                      else if (bmiVal >= 30) cat = { label: 'השמנה', color: '#e74c3c' };
+                      
+                      return (
+                        <>
+                          <div className="bmi-value" style={{ color: cat.color }}>{bmiVal}</div>
+                          <div className="bmi-label">{cat.label}</div>
+                        </>
+                      );
+                    })()}
+                  </div>
+
+                  <div className="analysis-box progress-box">
+                    <h4>התקדמות ליעד</h4>
+                    {(() => {
+                      const start = +userSettings.starting_weight_kg;
+                      const target = +userSettings.target_weight_kg;
+                      const current = weightLogs[0].weight_kg;
+                      
+                      if (!start || !target) return <p>הזן משקל התחלתי ויעד</p>;
+                      
+                      const totalToLose = start - target;
+                      const lostSoFar = start - current;
+                      const progressPct = totalToLose === 0 ? 0 : Math.max(0, Math.min(100, (lostSoFar / totalToLose) * 100));
+                      
+                      return (
+                        <>
+                          <div className="progress-info">
+                            <span>{lostSoFar.toFixed(1)} ק״ג ירדו</span>
+                            <span>{Math.abs(current - target).toFixed(1)} ק״ג נותרו</span>
+                          </div>
+                          <div className="progress-bg large">
+                            <div className="progress-bar weight" style={{ width: `${progressPct}%` }}></div>
+                          </div>
+                          <div className="progress-pct">{progressPct.toFixed(0)}%</div>
+                        </>
+                      );
+                    })()}
+                  </div>
+                </div>
+
+                <div className="weight-chart-container">
+                  <h3>📈 מגמת משקל</h3>
+                  <div style={{ width: '100%', height: 300 }}>
+                    <ResponsiveContainer>
+                      <LineChart data={[...weightLogs].reverse()}>
+                        <CartesianGrid strokeDasharray="3 3" vertical={false} />
+                        <XAxis dataKey="date" tick={{ fontSize: 12 }} />
+                        <YAxis domain={['dataMin - 2', 'dataMax + 2']} tick={{ fontSize: 12 }} />
+                        <Tooltip 
+                          contentStyle={{ direction: 'rtl', textAlign: 'right', borderRadius: '8px' }}
+                          labelFormatter={(label) => `תאריך: ${label}`}
+                        />
+                        {userSettings.target_weight_kg && (
+                          <ReferenceLine y={+userSettings.target_weight_kg} stroke="red" strokeDasharray="3 3" label="יעד" />
+                        )}
+                        <Line 
+                          type="monotone" 
+                          dataKey="weight_kg" 
+                          stroke="#4a90e2" 
+                          strokeWidth={3} 
+                          dot={{ r: 6, fill: '#4a90e2' }} 
+                          activeDot={{ r: 8 }}
+                          name="משקל"
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+                  </div>
+                </div>
               </div>
             )}
           </div>

@@ -38,6 +38,20 @@ db.exec(`
     date TEXT NOT NULL,
     amount_ml INTEGER NOT NULL DEFAULT 0
   );
+
+  CREATE TABLE IF NOT EXISTS weight_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL,
+    weight_kg REAL NOT NULL,
+    created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS user_settings (
+    id INTEGER PRIMARY KEY CHECK (id = 1),
+    height_cm REAL,
+    target_weight_kg REAL,
+    starting_weight_kg REAL
+  );
 `);
 
 // Migration to add meal_type to diary_entries if not already there

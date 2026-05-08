@@ -266,6 +266,46 @@ app.post('/api/water', (req, res) => {
   res.json(updated);
 });
 
+// --- User Settings endpoints ---
+app.get('/api/settings', (req, res) => {
+  let settings = db.prepare('SELECT * FROM user_settings WHERE id = 1').get();
+  if (!settings) {
+    settings = { height_cm: null, target_weight_kg: null, starting_weight_kg: null };
+  }
+  res.json(settings);
+});
+
+app.post('/api/settings', (req, res) => {
+  const { height_cm, target_weight_kg, starting_weight_kg } = req.body;
+  const existing = db.prepare('SELECT id FROM user_settings WHERE id = 1').get();
+  
+  if (existing) {
+    db.prepare('UPDATE user_settings SET height_cm = ?, target_weight_kg = ?, starting_weight_kg = ? WHERE id = 1')
+      .run(height_cm, target_weight_kg, starting_weight_kg);
+  } else {
+    db.prepare('INSERT INTO user_settings (id, height_cm, target_weight_kg, starting_weight_kg) VALUES (1, ?, ?, ?)')
+      .run(height_cm, target_weight_kg, starting_weight_kg);
+  }
+  res.json({ success: true });
+});
+
+// --- Weight log endpoints ---
+app.get('/api/weight', (req, res) => {
+  const logs = db.prepare('SELECT * FROM weight_log ORDER BY date DESC').all();
+  res.json(logs);
+});
+
+app.post('/api/weight', (req, res) => {
+  const { date, weight_kg } = req.body;
+  const existing = db.prepare('SELECT id FROM weight_log WHERE date = ?').get(date);
+  if (existing) {
+    db.prepare('UPDATE weight_log SET weight_kg = ? WHERE date = ?').run(weight_kg, date);
+  } else {
+    db.prepare('INSERT INTO weight_log (date, weight_kg) VALUES (?, ?)').run(date, weight_kg);
+  }
+  res.json({ success: true });
+});
+
 // --- Weekly Statistics endpoint ---
 app.get('/api/stats/weekly', (req, res) => {
   const stats = [];
