@@ -1,12 +1,64 @@
+require('dotenv').config();
 const express = require('express');
 const cors = require('cors');
 const axios = require('axios');
 const db = require('./db');
+const { google } = require('googleapis');
 
 const app = express();
 app.use(cors());
 app.use(express.json({ limit: '50mb' }));
 app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
+const oauth2Client = new google.auth.OAuth2(
+  process.env.GOOGLE_CLIENT_ID,
+  process.env.GOOGLE_CLIENT_SECRET,
+  process.env.GOOGLE_REDIRECT_URI
+);
+
+console.log('Google OAuth initialized with ID:', process.env.GOOGLE_CLIENT_ID ? 'YES' : 'NO');
+
+const SCOPES = [
+  'https://www.googleapis.com/auth/fitness.body.read',
+  'https://www.googleapis.com/auth/fitness.activity.read'
+];
+
+// --- Google Fit OAuth Routes (MOVED TO TOP FOR PRIORITY) ---
+app.get('/api/auth/google', (req, res) => {
+  console.log('Generating Google Auth URL...');
+  try {
+    const url = oauth2Client.generateAuthUrl({
+      access_type: 'offline',
+      scope: SCOPES,
+      prompt: 'consent'
+    });
+    console.log('Generated URL:', url ? 'YES' : 'NO');
+    res.json({ url: url || null });
+  } catch (err) {
+    console.error('Error generating auth URL:', err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
+app.get('/api/auth/google/callback', async (req, res) => {
+  const { code } = req.query;
+  console.log('Received Google callback code');
+  try {
+    const { tokens } = await oauth2Client.getToken(code);
+    const existing = db.prepare('SELECT id FROM user_settings WHERE id = 1').get();
+    if (existing) {
+      db.prepare('UPDATE user_settings SET google_refresh_token = ?, google_access_token = ? WHERE id = 1')
+        .run(tokens.refresh_token || null, tokens.access_token);
+    } else {
+      db.prepare('INSERT INTO user_settings (id, google_refresh_token, google_access_token) VALUES (1, ?, ?)')
+        .run(tokens.refresh_token || null, tokens.access_token);
+    }
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}?google_sync=success`);
+  } catch (err) {
+    console.error('Error during Google OAuth callback:', err);
+    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}?google_sync=error`);
+  }
+});
 
 // AI parsing for free text
 app.post('/api/ai/parse-text', async (req, res) => {
@@ -296,12 +348,19 @@ app.get('/api/weight', (req, res) => {
 });
 
 app.post('/api/weight', (req, res) => {
-  const { date, weight_kg } = req.body;
+  const { date, weight_kg, fat_pct, muscle_mass_kg, water_pct, bone_mass_kg, visceral_fat } = req.body;
   const existing = db.prepare('SELECT id FROM weight_log WHERE date = ?').get(date);
   if (existing) {
-    db.prepare('UPDATE weight_log SET weight_kg = ? WHERE date = ?').run(weight_kg, date);
+    db.prepare(`
+      UPDATE weight_log 
+      SET weight_kg = ?, fat_pct = ?, muscle_mass_kg = ?, water_pct = ?, bone_mass_kg = ?, visceral_fat = ? 
+      WHERE date = ?
+    `).run(weight_kg, fat_pct || null, muscle_mass_kg || null, water_pct || null, bone_mass_kg || null, visceral_fat || null, date);
   } else {
-    db.prepare('INSERT INTO weight_log (date, weight_kg) VALUES (?, ?)').run(date, weight_kg);
+    db.prepare(`
+      INSERT INTO weight_log (date, weight_kg, fat_pct, muscle_mass_kg, water_pct, bone_mass_kg, visceral_fat) 
+      VALUES (?, ?, ?, ?, ?, ?, ?)
+    `).run(date, weight_kg, fat_pct || null, muscle_mass_kg || null, water_pct || null, bone_mass_kg || null, visceral_fat || null);
   }
   res.json({ success: true });
 });
@@ -309,6 +368,135 @@ app.post('/api/weight', (req, res) => {
 app.delete('/api/weight/:id', (req, res) => {
   db.prepare('DELETE FROM weight_log WHERE id = ?').run(req.params.id);
   res.json({ success: true });
+});
+
+// --- Activity log endpoints ---
+app.get('/api/activity/:date', (req, res) => {
+  const log = db.prepare('SELECT * FROM activity_log WHERE date = ?').get(req.params.date);
+  res.json(log || { steps: 0, burned_calories: 0, active_minutes: 0 });
+});
+
+app.post('/api/activity', (req, res) => {
+  const { date, steps, burned_calories, active_minutes } = req.body;
+  const existing = db.prepare('SELECT id FROM activity_log WHERE date = ?').get(date);
+  if (existing) {
+    db.prepare('UPDATE activity_log SET steps = ?, burned_calories = ?, active_minutes = ?, updated_at = datetime(\'now\') WHERE date = ?')
+      .run(steps || 0, burned_calories || 0, active_minutes || 0, date);
+  } else {
+    db.prepare('INSERT INTO activity_log (date, steps, burned_calories, active_minutes) VALUES (?, ?, ?, ?)')
+      .run(date, steps || 0, burned_calories || 0, active_minutes || 0);
+  }
+  res.json({ success: true });
+});
+
+// --- Google Fit Sync Logic ---
+app.post('/api/sync/google-fit', async (req, res) => {
+  const settings = db.prepare('SELECT * FROM user_settings WHERE id = 1').get();
+  if (!settings || !settings.google_access_token) {
+    return res.status(401).json({ error: 'Google Fit not connected' });
+  }
+
+  oauth2Client.setCredentials({
+    access_token: settings.google_access_token,
+    refresh_token: settings.google_refresh_token
+  });
+
+  // Refresh token if needed
+  oauth2Client.on('tokens', (tokens) => {
+    if (tokens.refresh_token) {
+      db.prepare('UPDATE user_settings SET google_refresh_token = ? WHERE id = 1').run(tokens.refresh_token);
+    }
+    db.prepare('UPDATE user_settings SET google_access_token = ? WHERE id = 1').run(tokens.access_token);
+  });
+
+  const fitness = google.fitness({ version: 'v1', auth: oauth2Client });
+  const dateStr = req.body.date || new Date().toISOString().split('T')[0];
+  
+  // Set start and end time based on LOCAL time
+  const startTime = new Date(dateStr + 'T00:00:00').getTime();
+  const endTime = new Date(dateStr + 'T23:59:59').getTime();
+
+  try {
+    // 1. Fetch Weight (remains similar but with local time)
+    const weightRes = await fitness.users.dataSources.datasets.get({
+      userId: 'me',
+      dataSourceId: 'derived:com.google.weight:com.google.android.gms:merge_weight',
+      datasetId: `${startTime}000000-${endTime}000000`
+    });
+
+    if (weightRes.data.point && weightRes.data.point.length > 0) {
+      const point = weightRes.data.point[weightRes.data.point.length - 1]; // Get latest point of the day
+      const weight = point.value[0].fpVal;
+      
+      const existing = db.prepare('SELECT id FROM weight_log WHERE date = ?').get(dateStr);
+      if (existing) {
+        db.prepare('UPDATE weight_log SET weight_kg = ? WHERE date = ?').run(weight, dateStr);
+      } else {
+        db.prepare('INSERT INTO weight_log (date, weight_kg) VALUES (?, ?)').run(dateStr, weight);
+      }
+    }
+
+    // 2. Fetch Body Composition (Fat %, Muscle, etc.)
+    const bodyCompRes = await fitness.users.dataSources.datasets.get({
+      userId: 'me',
+      dataSourceId: 'derived:com.google.body.fat.percentage:com.google.android.gms:merged',
+      datasetId: `${startTime}000000-${endTime}000000`
+    });
+
+    if (bodyCompRes.data.point && bodyCompRes.data.point.length > 0) {
+      const fatPct = bodyCompRes.data.point[bodyCompRes.data.point.length - 1].value[0].fpVal;
+      db.prepare('UPDATE weight_log SET fat_pct = ? WHERE date = ?').run(fatPct, dateStr);
+    }
+
+    // 3. Fetch Activity (Improved Aggregation)
+    const activityRes = await fitness.users.dataset.aggregate({
+      userId: 'me',
+      requestBody: {
+        aggregateBy: [
+          { dataTypeName: 'com.google.step_count.delta' },
+          { dataTypeName: 'com.google.step_count.cumulative' },
+          { dataTypeName: 'com.google.calories.expended' }
+        ],
+        bucketByTime: { durationMillis: 86400000 },
+        startTimeMillis: startTime,
+        endTimeMillis: endTime
+      }
+    });
+
+    let steps = 0;
+    let calories = 0;
+
+    console.log('Activity Buckets:', JSON.stringify(activityRes.data.bucket, null, 2));
+
+    if (activityRes.data.bucket && activityRes.data.bucket[0]) {
+      activityRes.data.bucket[0].dataset.forEach(ds => {
+        ds.point.forEach(p => {
+          if (ds.dataSourceId.includes('step_count')) {
+            steps += (p.value[0].intVal || 0);
+          } else if (ds.dataSourceId.includes('calories')) {
+            calories += (p.value[0].fpVal || 0);
+          }
+        });
+      });
+    }
+
+    calories = Math.round(calories);
+
+    // Update Activity Log
+    const existingAct = db.prepare('SELECT id FROM activity_log WHERE date = ?').get(dateStr);
+    if (existingAct) {
+      db.prepare('UPDATE activity_log SET steps = ?, burned_calories = ?, updated_at = datetime(\'now\') WHERE date = ?')
+        .run(steps, calories, dateStr);
+    } else {
+      db.prepare('INSERT INTO activity_log (date, steps, burned_calories) VALUES (?, ?, ?)')
+        .run(dateStr, steps, calories);
+    }
+
+    res.json({ success: true });
+  } catch (err) {
+    console.error('Google Fit Sync Error:', err);
+    res.status(500).json({ error: 'Failed to sync with Google Fit' });
+  }
 });
 
 // --- Weekly Statistics endpoint ---

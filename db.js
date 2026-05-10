@@ -43,22 +43,52 @@ db.exec(`
     id INTEGER PRIMARY KEY AUTOINCREMENT,
     date TEXT NOT NULL,
     weight_kg REAL NOT NULL,
+    fat_pct REAL,
+    muscle_mass_kg REAL,
+    water_pct REAL,
+    bone_mass_kg REAL,
+    visceral_fat REAL,
     created_at TEXT DEFAULT (datetime('now'))
+  );
+
+  CREATE TABLE IF NOT EXISTS activity_log (
+    id INTEGER PRIMARY KEY AUTOINCREMENT,
+    date TEXT NOT NULL UNIQUE,
+    steps INTEGER DEFAULT 0,
+    burned_calories INTEGER DEFAULT 0,
+    active_minutes INTEGER DEFAULT 0,
+    updated_at TEXT DEFAULT (datetime('now'))
   );
 
   CREATE TABLE IF NOT EXISTS user_settings (
     id INTEGER PRIMARY KEY CHECK (id = 1),
     height_cm REAL,
     target_weight_kg REAL,
-    starting_weight_kg REAL
+    starting_weight_kg REAL,
+    google_refresh_token TEXT,
+    google_access_token TEXT
   );
 `);
 
 // Migration to add meal_type to diary_entries if not already there
 try {
   db.exec("ALTER TABLE diary_entries ADD COLUMN meal_type TEXT DEFAULT 'נשנושים'");
-} catch (err) {
-  // Column already exists, ignore
-}
+} catch (err) {}
+
+// Migrations for weight_log new columns
+const weightCols = ['fat_pct', 'muscle_mass_kg', 'water_pct', 'bone_mass_kg', 'visceral_fat'];
+weightCols.forEach(col => {
+  try {
+    db.exec(`ALTER TABLE weight_log ADD COLUMN ${col} REAL`);
+  } catch (err) {}
+});
+
+// Migrations for user_settings google tokens
+try {
+  db.exec("ALTER TABLE user_settings ADD COLUMN google_refresh_token TEXT");
+} catch (err) {}
+try {
+  db.exec("ALTER TABLE user_settings ADD COLUMN google_access_token TEXT");
+} catch (err) {}
 
 module.exports = db;

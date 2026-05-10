@@ -36,7 +36,15 @@ function App() {
 
   const [weightLogs, setWeightLogs] = useState([]);
   const [userSettings, setUserSettings] = useState({ height_cm: '', target_weight_kg: '', starting_weight_kg: '' });
-  const [weightInput, setWeightInput] = useState('');
+  const [weightInput, setWeightInput] = useState({
+    weight_kg: '',
+    fat_pct: '',
+    muscle_mass_kg: '',
+    water_pct: '',
+    bone_mass_kg: '',
+    visceral_fat: ''
+  });
+  const [activity, setActivity] = useState({ steps: 0, burned_calories: 0, active_minutes: 0 });
 
   const [isAuthorized, setIsAuthorized] = useState(() => {
     return localStorage.getItem('auth_pin') === '7327043';
@@ -50,8 +58,21 @@ function App() {
     fetchWater();
     fetchWeightLogs();
     fetchUserSettings();
+    fetchActivity();
     if (mode === 'stats') {
       fetchStats();
+    }
+
+    // Check for Google Sync status in URL
+    const urlParams = new URLSearchParams(window.location.search);
+    if (urlParams.get('google_sync') === 'success') {
+      setMode('weight');
+      alert('החיבור ל-Google Fit הצליח! 🎉');
+      // Clean up URL
+      window.history.replaceState({}, document.title, window.location.pathname);
+    } else if (urlParams.get('google_sync') === 'error') {
+      alert('שגיאה בחיבור ל-Google Fit. נסה שוב.');
+      window.history.replaceState({}, document.title, window.location.pathname);
     }
   }, [date, mode]);
 
@@ -93,10 +114,26 @@ function App() {
     });
   }
 
+  async function fetchActivity() {
+    const { data } = await axios.get(`${API}/activity/${date}`);
+    setActivity(data);
+  }
+
   async function saveWeight() {
-    if (!weightInput) return;
-    await axios.post(`${API}/weight`, { date, weight_kg: +weightInput });
-    setWeightInput('');
+    if (!weightInput.weight_kg) return;
+    await axios.post(`${API}/weight`, { 
+      date, 
+      ...weightInput,
+      weight_kg: +weightInput.weight_kg,
+      fat_pct: weightInput.fat_pct ? +weightInput.fat_pct : null,
+      muscle_mass_kg: weightInput.muscle_mass_kg ? +weightInput.muscle_mass_kg : null,
+      water_pct: weightInput.water_pct ? +weightInput.water_pct : null,
+      bone_mass_kg: weightInput.bone_mass_kg ? +weightInput.bone_mass_kg : null,
+      visceral_fat: weightInput.visceral_fat ? +weightInput.visceral_fat : null,
+    });
+    setWeightInput({
+      weight_kg: '', fat_pct: '', muscle_mass_kg: '', water_pct: '', bone_mass_kg: '', visceral_fat: ''
+    });
     fetchWeightLogs();
   }
 
@@ -104,6 +141,43 @@ function App() {
     if (!window.confirm('האם אתה בטוח שברצונך למחוק את השקילה הזו?')) return;
     await axios.delete(`${API}/weight/${id}`);
     fetchWeightLogs();
+  }
+
+  async function connectGoogleFit() {
+    console.log('Connecting to Google Fit...');
+    try {
+      const { data } = await axios.get(`${API}/auth/google`);
+      console.log('Received auth URL:', data.url);
+      if (data.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('Server did not return an auth URL');
+      }
+    } catch (err) {
+      console.error('Failed to connect to Google Fit:', err);
+      alert('שגיאה בתקשורת עם השרת: ' + (err.response?.data?.error || err.message));
+    }
+  }
+
+  async function syncGoogleFit() {
+    setParsing(true);
+    try {
+      await axios.post(`${API}/sync/google-fit`, { date });
+      fetchWeightLogs();
+      fetchActivity();
+      alert('הסנכרון עם Google Fit הושלם בהצלחה!');
+    } catch (err) {
+      console.error(err);
+      if (err.response?.status === 401) {
+        if (window.confirm('Google Fit לא מחובר. האם ברצונך להתחבר עכשיו?')) {
+          connectGoogleFit();
+        }
+      } else {
+        alert('שגיאה בסנכרון: ' + (err.response?.data?.error || err.message));
+      }
+    } finally {
+      setParsing(false);
+    }
   }
 
   async function saveSettings() {
@@ -277,9 +351,26 @@ function App() {
       <h1>יומן אכילה</h1>
 
       <div className="top-dashboard">
-        <div className="date-picker">
-          <label>תאריך: </label>
+        <div className="date-picker-card">
+          <label>📅 תאריך: </label>
           <input type="date" value={date} onChange={e => setDate(e.target.value)} />
+          
+          <div className="activity-quick-stats">
+            <div className="a-stat">
+              <span className="a-icon">🔥</span>
+              <div className="a-info">
+                <span className="a-label">שריפה</span>
+                <span className="a-val">{(activity?.burned_calories || 0)} קל׳</span>
+              </div>
+            </div>
+            <div className="a-stat">
+              <span className="a-icon">👟</span>
+              <div className="a-info">
+                <span className="a-label">צעדים</span>
+                <span className="a-val">{(activity?.steps || 0).toLocaleString()}</span>
+              </div>
+            </div>
+          </div>
         </div>
 
         <div className="water-tracker">
@@ -531,8 +622,19 @@ function App() {
                 <button className="save-settings-btn" onClick={saveSettings}>שמור הגדרות</button>
               </div>
 
+              <div className="weight-card google-fit-card">
+                <h3>🔄 סנכרון נתונים</h3>
+                <p className="hint">סנכרן משקל משיאומי וקלוריות מגרמין דרך Google Fit</p>
+                <div className="sync-actions">
+                  <button className="sync-btn google" onClick={syncGoogleFit} disabled={parsing}>
+                    {parsing ? 'מסתנכרן...' : '🔄 סנכרן עכשיו'}
+                  </button>
+                  <button className="connect-link-btn" onClick={connectGoogleFit}>🔗 חבר חשבון גוגל</button>
+                </div>
+              </div>
+
               <div className="weight-card entry-card">
-                <h3>📉 הזן משקל חדש</h3>
+                <h3>📉 הזן שקילה חדשה</h3>
                 <div className="weight-date-picker">
                   <label>תאריך:</label>
                   <input 
@@ -541,17 +643,39 @@ function App() {
                     onChange={e => setDate(e.target.value)} 
                   />
                 </div>
-                <div className="weight-input-row">
-                  <input 
-                    type="number" 
-                    step="0.1" 
-                    placeholder="70.5" 
-                    value={weightInput} 
-                    onChange={e => setWeightInput(e.target.value)} 
-                  />
-                  <span>ק״ג</span>
+                <div className="weight-inputs-form">
+                  <div className="weight-input-group main">
+                    <label>משקל (ק״ג):</label>
+                    <input 
+                      type="number" step="0.1" placeholder="70.5" 
+                      value={weightInput.weight_kg} 
+                      onChange={e => setWeightInput(s => ({ ...s, weight_kg: e.target.value }))} 
+                    />
+                  </div>
+                  <div className="weight-inputs-grid">
+                    <label>
+                      אחוז שומן:
+                      <input type="number" step="0.1" placeholder="%" value={weightInput.fat_pct} 
+                        onChange={e => setWeightInput(s => ({ ...s, fat_pct: e.target.value }))} />
+                    </label>
+                    <label>
+                      מסת שריר:
+                      <input type="number" step="0.1" placeholder="ק״ג" value={weightInput.muscle_mass_kg} 
+                        onChange={e => setWeightInput(s => ({ ...s, muscle_mass_kg: e.target.value }))} />
+                    </label>
+                    <label>
+                      אחוז מים:
+                      <input type="number" step="0.1" placeholder="%" value={weightInput.water_pct} 
+                        onChange={e => setWeightInput(s => ({ ...s, water_pct: e.target.value }))} />
+                    </label>
+                    <label>
+                      שומן ויסרלי:
+                      <input type="number" step="1" placeholder="רמה" value={weightInput.visceral_fat} 
+                        onChange={e => setWeightInput(s => ({ ...s, visceral_fat: e.target.value }))} />
+                    </label>
+                  </div>
                 </div>
-                <button className="add-btn" onClick={saveWeight} disabled={!weightInput}>עדכן משקל</button>
+                <button className="add-btn full-width" onClick={saveWeight} disabled={!weightInput.weight_kg}>עדכן שקילה</button>
               </div>
             </div>
 
@@ -646,6 +770,11 @@ function App() {
                         <div className="history-info">
                           <span className="history-date">{log.date}</span>
                           <span className="history-weight"><strong>{log.weight_kg}</strong> ק״ג</span>
+                          <div className="history-metrics">
+                            {log.fat_pct && <span>🍖 {log.fat_pct}%</span>}
+                            {log.muscle_mass_kg && <span>💪 {log.muscle_mass_kg}ק״ג</span>}
+                            {log.water_pct && <span>💧 {log.water_pct}%</span>}
+                          </div>
                         </div>
                         <button className="del-btn" onClick={() => deleteWeight(log.id)}>✕</button>
                       </div>
