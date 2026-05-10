@@ -100,6 +100,12 @@ function App() {
     fetchWeightLogs();
   }
 
+  async function deleteWeight(id) {
+    if (!window.confirm('האם אתה בטוח שברצונך למחוק את השקילה הזו?')) return;
+    await axios.delete(`${API}/weight/${id}`);
+    fetchWeightLogs();
+  }
+
   async function saveSettings() {
     await axios.post(`${API}/settings`, userSettings);
     alert('ההגדרות נשמרו בהצלחה');
@@ -629,6 +635,21 @@ function App() {
                         />
                       </LineChart>
                     </ResponsiveContainer>
+                  </div>
+                </div>
+
+                <div className="weight-history-list">
+                  <h3>📜 היסטוריית שקילות</h3>
+                  <div className="history-items">
+                    {weightLogs.map(log => (
+                      <div key={log.id} className="history-item">
+                        <div className="history-info">
+                          <span className="history-date">{log.date}</span>
+                          <span className="history-weight"><strong>{log.weight_kg}</strong> ק״ג</span>
+                        </div>
+                        <button className="del-btn" onClick={() => deleteWeight(log.id)}>✕</button>
+                      </div>
+                    ))}
                   </div>
                 </div>
               </div>

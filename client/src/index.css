@@ -1090,3 +1090,62 @@ th {
   max-width: 420px;
 }
 
+/* Weight History List Styles */
+.weight-history-list {
+  background: #fff;
+  padding: 20px;
+  border-radius: 12px;
+  border: 1px solid #e2e8f0;
+  box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+  margin-top: 16px;
+}
+
+.weight-history-list h3 {
+  margin-bottom: 16px;
+  font-size: 1.1rem;
+  color: #334155;
+  border-bottom: 1px solid #f1f5f9;
+  padding-bottom: 8px;
+}
+
+.history-items {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  padding-left: 8px; /* For scrollbar space */
+}
+
+.history-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 10px 14px;
+  background: #f8fafc;
+  border: 1px solid #eef2f5;
+  border-radius: 8px;
+  transition: background 0.2s;
+}
+
+.history-item:hover {
+  background: #f1f5f9;
+}
+
+.history-info {
+  display: flex;
+  gap: 20px;
+  align-items: center;
+}
+
+.history-date {
+  font-size: 0.9rem;
+  color: #64748b;
+  min-width: 90px;
+}
+
+.history-weight {
+  font-size: 1rem;
+  color: #1e293b;
+}
+

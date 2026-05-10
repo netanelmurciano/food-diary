@@ -306,6 +306,11 @@ app.post('/api/weight', (req, res) => {
   res.json({ success: true });
 });
 
+app.delete('/api/weight/:id', (req, res) => {
+  db.prepare('DELETE FROM weight_log WHERE id = ?').run(req.params.id);
+  res.json({ success: true });
+});
+
 // --- Weekly Statistics endpoint ---
 app.get('/api/stats/weekly', (req, res) => {
   const stats = [];
