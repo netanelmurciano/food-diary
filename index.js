@@ -494,8 +494,9 @@ app.post('/api/sync/google-fit', async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error('Google Fit Sync Error:', err);
-    res.status(500).json({ error: 'Failed to sync with Google Fit' });
+    console.error('Google Fit Sync Error:', err.response?.data || err.message);
+    const detail = err.response?.data?.error?.message || err.message;
+    res.status(500).json({ error: `Failed to sync with Google Fit: ${detail}` });
   }
 });
 
