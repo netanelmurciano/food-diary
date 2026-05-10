@@ -426,7 +426,7 @@ app.post('/api/sync/google-fit', async (req, res) => {
 
     if (weightRes.data.point && weightRes.data.point.length > 0) {
       const point = weightRes.data.point[weightRes.data.point.length - 1]; // Get latest point of the day
-      const weight = point.value[0].fpVal;
+      const weight = Math.round(point.value[0].fpVal * 10) / 10;
       
       const existing = db.prepare('SELECT id FROM weight_log WHERE date = ?').get(dateStr);
       if (existing) {
@@ -444,7 +444,7 @@ app.post('/api/sync/google-fit', async (req, res) => {
     });
 
     if (bodyCompRes.data.point && bodyCompRes.data.point.length > 0) {
-      const fatPct = bodyCompRes.data.point[bodyCompRes.data.point.length - 1].value[0].fpVal;
+      const fatPct = Math.round(bodyCompRes.data.point[bodyCompRes.data.point.length - 1].value[0].fpVal * 10) / 10;
       db.prepare('UPDATE weight_log SET fat_pct = ? WHERE date = ?').run(fatPct, dateStr);
     }
 

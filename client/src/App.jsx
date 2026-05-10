@@ -769,11 +769,11 @@ function App() {
                       <div key={log.id} className="history-item">
                         <div className="history-info">
                           <span className="history-date">{log.date}</span>
-                          <span className="history-weight"><strong>{log.weight_kg}</strong> ק״ג</span>
+                          <span className="history-weight"><strong>{(+log.weight_kg).toFixed(1)}</strong> ק״ג</span>
                           <div className="history-metrics">
-                            {log.fat_pct && <span>🍖 {log.fat_pct}%</span>}
-                            {log.muscle_mass_kg && <span>💪 {log.muscle_mass_kg}ק״ג</span>}
-                            {log.water_pct && <span>💧 {log.water_pct}%</span>}
+                            {log.fat_pct && <span>🍖 {(+log.fat_pct).toFixed(1)}%</span>}
+                            {log.muscle_mass_kg && <span>💪 {(+log.muscle_mass_kg).toFixed(1)}ק״ג</span>}
+                            {log.water_pct && <span>💧 {(+log.water_pct).toFixed(1)}%</span>}
                           </div>
                         </div>
                         <button className="del-btn" onClick={() => deleteWeight(log.id)}>✕</button>
