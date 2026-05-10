@@ -454,7 +454,6 @@ app.post('/api/sync/google-fit', async (req, res) => {
       requestBody: {
         aggregateBy: [
           { dataTypeName: 'com.google.step_count.delta' },
-          { dataTypeName: 'com.google.step_count.cumulative' },
           { dataTypeName: 'com.google.calories.expended' }
         ],
         bucketByTime: { durationMillis: 86400000 },
