@@ -53,10 +53,10 @@ app.get('/api/auth/google/callback', async (req, res) => {
       db.prepare('INSERT INTO user_settings (id, google_refresh_token, google_access_token) VALUES (1, ?, ?)')
         .run(tokens.refresh_token || null, tokens.access_token);
     }
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}?google_sync=success`);
+    res.redirect(`${process.env.FRONTEND_URL || '/'}?google_sync=success`);
   } catch (err) {
     console.error('Error during Google OAuth callback:', err);
-    res.redirect(`${process.env.FRONTEND_URL || 'http://localhost:5173'}?google_sync=error`);
+    res.redirect(`${process.env.FRONTEND_URL || '/'}?google_sync=error`);
   }
 });
 
